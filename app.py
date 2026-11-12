@@ -199,6 +199,7 @@ st.markdown(
 
 
 
+
 # Step 3 — Load world boundaries and connect to Google Sheets
 
 @st.cache_data
@@ -217,45 +218,20 @@ def connect_sheet():
         with open("service_account.json", "r") as f:
             credentials = json.load(f)
 
-    # Normalize private key line breaks
-    raw_key = credentials["private_key"]
-    raw_key = raw_key.replace("\\n", "\n").strip()
-
-    credentials["private_key"] = raw_key + "\n"
-
-    # Validate private key without displaying its contents
-    import base64
-
-    key = credentials["private_key"]
-
-    base64_part = key.replace(
-        "-----BEGIN PRIVATE KEY-----", ""
+    credentials["private_key"] = (
+        credentials["private_key"].replace("\\n", "\n").strip() + "\n"
     )
-    base64_part = base64_part.replace(
-        "-----END PRIVATE KEY-----", ""
-    )
-    base64_part = "".join(base64_part.split())
 
-    try:
-        base64.b64decode(base64_part, validate=True)
-    except Exception:
-        raise ValueError(
-            "Private key Base64 validation failed. "
-            "Check the Google Cloud Secrets private key."
-        )
-
-    # Connect to Google Sheets
     gc = gspread.service_account_from_dict(credentials)
 
     sheet = gc.open_by_key(
         st.secrets["SHEET_ID"]
     ).sheet1
 
-        return sheet
+    return sheet
 
 
-# ADD THIS CODE HERE
-
+# Define countries
 world = load_world()
 
 countries = sorted(
@@ -263,6 +239,7 @@ countries = sorted(
 )
 
 
+# Load contributions
 @st.cache_data
 def load_contributions():
     records = connect_sheet().get_all_records()
@@ -271,6 +248,9 @@ def load_contributions():
         records,
         columns=["Contributor", "Country"]
     )
+
+
+# Step 4 — Collect participant information
 
 
 # Step 4 — Collect participant information
