@@ -209,16 +209,19 @@ def load_world():
 
 
 
+
 @st.cache_resource
 def connect_sheet():
-    # Cloud hosting: read credentials from Streamlit Secrets
     if "gcp_service_account" in st.secrets:
         credentials = dict(st.secrets["gcp_service_account"])
-
-    # Local VS Code: read credentials from JSON file
     else:
         with open("service_account.json", "r") as f:
             credentials = json.load(f)
+
+    # Normalize escaped newline characters in the private key
+    private_key = credentials["private_key"]
+    private_key = private_key.replace("\\n", "\n").strip() + "\n"
+    credentials["private_key"] = private_key
 
     gc = gspread.service_account_from_dict(credentials)
 
@@ -227,6 +230,7 @@ def connect_sheet():
     ).sheet1
 
     return sheet
+
 
 
 
