@@ -221,6 +221,25 @@ def connect_sheet():
     raw_key = credentials["private_key"].replace("\\n", "\n")
     clean_lines = [line.strip() for line in raw_key.splitlines() if line.strip()]
     credentials["private_key"] = "\n".join(clean_lines) + "\n"
+    import base64
+
+key = credentials["private_key"]
+
+st.write("Private key starts correctly:", key.startswith("-----BEGIN PRIVATE KEY-----"))
+st.write("Private key ends correctly:", key.strip().endswith("-----END PRIVATE KEY-----"))
+st.write("Private key length:", len(key))
+st.write("Private key contains literal newline escapes:", "\\n" in key)
+st.write("Private key contains actual line breaks:", "\n" in key)
+
+base64_part = key.replace("-----BEGIN PRIVATE KEY-----", "")
+base64_part = base64_part.replace("-----END PRIVATE KEY-----", "")
+base64_part = "".join(base64_part.split())
+
+try:
+    base64.b64decode(base64_part, validate=True)
+    st.write("Base64 validation: PASSED")
+except Exception as e:
+    st.write("Base64 validation: FAILED", str(e))
 
     gc = gspread.service_account_from_dict(credentials)
 
