@@ -198,15 +198,15 @@ st.markdown(
 )
 
 
+
 # Step 3 — Load world boundaries and connect to Google Sheets
+
 @st.cache_data
 def load_world():
     world = gpd.read_file(
         "data/ne_110m_admin_0_countries.shp"
     )
     return world.to_crs("EPSG:4326")
-
-
 
 
 @st.cache_resource
@@ -217,30 +217,34 @@ def connect_sheet():
         with open("service_account.json", "r") as f:
             credentials = json.load(f)
 
-    # Robustly clean and normalize private key formatting
-    raw_key = credentials["private_key"].replace("\\n", "\n")
-    clean_lines = [line.strip() for line in raw_key.splitlines() if line.strip()]
-    credentials["private_key"] = "\n".join(clean_lines) + "\n"
+    # Normalize private key line breaks
+    raw_key = credentials["private_key"]
+    raw_key = raw_key.replace("\\n", "\n").strip()
+
+    credentials["private_key"] = raw_key + "\n"
+
+    # Validate private key without displaying its contents
     import base64
 
-key = credentials["private_key"]
+    key = credentials["private_key"]
 
-st.write("Private key starts correctly:", key.startswith("-----BEGIN PRIVATE KEY-----"))
-st.write("Private key ends correctly:", key.strip().endswith("-----END PRIVATE KEY-----"))
-st.write("Private key length:", len(key))
-st.write("Private key contains literal newline escapes:", "\\n" in key)
-st.write("Private key contains actual line breaks:", "\n" in key)
+    base64_part = key.replace(
+        "-----BEGIN PRIVATE KEY-----", ""
+    )
+    base64_part = base64_part.replace(
+        "-----END PRIVATE KEY-----", ""
+    )
+    base64_part = "".join(base64_part.split())
 
-base64_part = key.replace("-----BEGIN PRIVATE KEY-----", "")
-base64_part = base64_part.replace("-----END PRIVATE KEY-----", "")
-base64_part = "".join(base64_part.split())
+    try:
+        base64.b64decode(base64_part, validate=True)
+    except Exception:
+        raise ValueError(
+            "Private key Base64 validation failed. "
+            "Check the Google Cloud Secrets private key."
+        )
 
-try:
-    base64.b64decode(base64_part, validate=True)
-    st.write("Base64 validation: PASSED")
-except Exception as e:
-    st.write("Base64 validation: FAILED", str(e))
-
+    # Connect to Google Sheets
     gc = gspread.service_account_from_dict(credentials)
 
     sheet = gc.open_by_key(
@@ -248,59 +252,6 @@ except Exception as e:
     ).sheet1
 
     return sheet
-
-
-
-
-
-@st.cache_data(ttl=5)
-def load_contributions():
-
-    sheet = connect_sheet()
-
-    # Read all worksheet values
-    records = sheet.get_all_values()
-
-    # Empty spreadsheet
-    if not records:
-        return pd.DataFrame(
-            columns=["Contributor", "Country"]
-        )
-
-    # First row contains column headings
-    headers = [
-        str(value).strip()
-        for value in records[0]
-    ]
-
-    # Check required columns
-    if "Contributor" not in headers or "Country" not in headers:
-        raise ValueError(
-            f"Incorrect Google Sheet headers: {headers}. "
-            "Expected Contributor and Country in the first row."
-        )
-
-    # Convert rows into a DataFrame
-    df = pd.DataFrame(
-        records[1:],
-        columns=headers
-    )
-
-    # Keep only required columns
-    df = df[["Contributor", "Country"]]
-
-    # Remove empty rows
-    df = df.dropna()
-    df = df[
-        (df["Contributor"].str.strip() != "") &
-        (df["Country"].str.strip() != "")
-    ]
-
-    return df
-
-
-world = load_world()
-countries = sorted(world["NAME"].dropna().unique())
 
 # Step 4 — Collect participant information
 st.sidebar.header("✈️ Add Your Dream Destination")
