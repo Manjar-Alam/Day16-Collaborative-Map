@@ -1,0 +1,13 @@
+# Credentials - NEVER upload
+service_account.json
+.streamlit/secrets.toml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+
+# VS Code
+.vscode/
