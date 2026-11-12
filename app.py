@@ -1,4 +1,3 @@
-
 # Step 1 — Import libraries
 import streamlit as st
 import geopandas as gpd
@@ -218,10 +217,10 @@ def connect_sheet():
         with open("service_account.json", "r") as f:
             credentials = json.load(f)
 
-    # Normalize escaped newline characters in the private key
-    private_key = credentials["private_key"]
-    private_key = private_key.replace("\\n", "\n").strip() + "\n"
-    credentials["private_key"] = private_key
+    # Robustly clean and normalize private key formatting
+    raw_key = credentials["private_key"].replace("\\n", "\n")
+    clean_lines = [line.strip() for line in raw_key.splitlines() if line.strip()]
+    credentials["private_key"] = "\n".join(clean_lines) + "\n"
 
     gc = gspread.service_account_from_dict(credentials)
 
