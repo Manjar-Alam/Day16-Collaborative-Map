@@ -251,7 +251,27 @@ def connect_sheet():
         st.secrets["SHEET_ID"]
     ).sheet1
 
-    return sheet
+        return sheet
+
+
+# ADD THIS CODE HERE
+
+world = load_world()
+
+countries = sorted(
+    world["NAME"].dropna().unique().tolist()
+)
+
+
+@st.cache_data
+def load_contributions():
+    records = connect_sheet().get_all_records()
+
+    return pd.DataFrame(
+        records,
+        columns=["Contributor", "Country"]
+    )
+
 
 # Step 4 — Collect participant information
 st.sidebar.header("✈️ Add Your Dream Destination")
