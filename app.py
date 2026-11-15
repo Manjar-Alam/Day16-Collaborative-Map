@@ -184,8 +184,8 @@ st.markdown("""
 <div class="hero">
     <h1>🌍 PLACES WE DREAM OF VISITING</h1>
     <h3>ONE WORLD. MANY DREAMS. ONE COLLABORATIVE MAP.</h3>
-    <p>30-Day Map Challenge &nbsp; | &nbsp; Day 16
-    &nbsp; | &nbsp; Collaborative Map</p>
+    <p>#30DayMapChallenge &nbsp; | &nbsp; Day 16 &nbsp; | &nbsp; Collaborative Map</p>
+    <p><strong>PreparedBy:</strong> Manjar</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -289,6 +289,7 @@ map_data["Dream_Count"] = (
     map_data["NAME"].map(preview_counts).fillna(0)
 )
 
+
 # Step 5 — Create the interactive world map
 geojson = json.loads(map_data.to_json())
 
@@ -311,6 +312,30 @@ fig = px.choropleth(
     title="OUR DREAM DESTINATIONS AROUND THE WORLD"
 )
 
+# Automatically zoom to selected country
+zoom_settings = {}
+
+if country:
+    selected_geometry = map_data.loc[
+        map_data["NAME"] == country, "geometry"
+    ]
+
+    if not selected_geometry.empty:
+        minx, miny, maxx, maxy = selected_geometry.total_bounds
+
+        lon_pad = max((maxx - minx) * 0.25, 5)
+        lat_pad = max((maxy - miny) * 0.25, 4)
+
+        zoom_settings = {
+            "lonaxis_range": [
+                max(minx - lon_pad, -180),
+                min(maxx + lon_pad, 180)
+            ],
+            "lataxis_range": [
+                max(miny - lat_pad, -85),
+                min(maxy + lat_pad, 85)
+            ]
+        }
 
 fig.update_geos(
     showcoastlines=True,
@@ -324,7 +349,8 @@ fig.update_geos(
     countrycolor="#FFFFFF",
     countrywidth=0.8,
     showframe=False,
-    projection_type="natural earth"
+    projection_type="natural earth",
+    **zoom_settings
 )
 
 fig.update_layout(
@@ -368,7 +394,7 @@ st.plotly_chart(
     }
 )
 
-
+# Show selected destination preview
 if country:
     st.markdown(f"""
     <div style="
@@ -385,6 +411,7 @@ if country:
         Submit to add it to our community map!
     </div>
     """, unsafe_allow_html=True)
+
 
 # Step 6 — Save contribution to Google Sheets
 if st.sidebar.button(
@@ -411,6 +438,7 @@ if st.sidebar.button(
         )
 
         st.rerun()
+
 
 # Step 7 — Display collaborative statistics
 st.divider()
