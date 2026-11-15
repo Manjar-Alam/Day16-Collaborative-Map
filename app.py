@@ -272,8 +272,21 @@ contributions = load_contributions()
 
 if not contributions.empty:
     counts = contributions.groupby("Country").size().to_dict()
+
+    dreamers = (
+        contributions.groupby("Country")["Contributor"]
+        .apply(
+            lambda x: ", ".join(
+                sorted(set(
+                    x.dropna().astype(str).str.strip()
+                ) - {""})
+            )
+        )
+        .to_dict()
+    )
 else:
     counts = {}
+    dreamers = {}
 
 # Add a temporary vote for live preview
 preview_counts = counts.copy()
@@ -288,7 +301,25 @@ map_data = world.copy()
 map_data["Dream_Count"] = (
     map_data["NAME"].map(preview_counts).fillna(0)
 )
+map_data["Dreamers"] = (
+    map_data["NAME"].map(dreamers).fillna("No contributors yet")
+)
 
+if country and name.strip():
+    existing_names = dreamers.get(country, "")
+
+    preview_names = [
+        n.strip()
+        for n in existing_names.split(",")
+        if n.strip()
+    ]
+
+    if name.strip() not in preview_names:
+        preview_names.append(name.strip())
+
+    map_data.loc[
+        map_data["NAME"] == country, "Dreamers"
+    ] = ", ".join(preview_names)
 
 # Step 5 — Create the interactive world map
 geojson = json.loads(map_data.to_json())
@@ -300,7 +331,10 @@ fig = px.choropleth(
     featureidkey="properties.NAME",
     color="Dream_Count",
     hover_name="NAME",
-    hover_data={"Dream_Count": True},
+    hover_data={
+    "Dream_Count": True,
+    "Dreamers": True
+}
     color_continuous_scale=[
         [0.00, "#EAF0F3"],
         [0.25, "#B7DDE0"],
