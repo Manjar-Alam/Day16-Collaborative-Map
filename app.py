@@ -1,3 +1,4 @@
+
 # Step 1 — Import libraries
 import streamlit as st
 import geopandas as gpd
@@ -113,6 +114,7 @@ h1, h2, h3, h4, p, label,
 [data-testid="stAlert"] {
     border-radius: 10px;
 }
+
 /* Text typed inside input fields */
 .stTextInput input {
     color: #17324D !important;
@@ -130,6 +132,7 @@ h1, h2, h3, h4, p, label,
 .stTextInput label {
     color: #17324D !important;
 }
+
 /* Country dropdown text */
 .stSelectbox div[data-baseweb="select"] {
     color: #17324D !important;
@@ -166,12 +169,13 @@ div[data-testid="stSelectbox"] div[data-baseweb="select"] * {
 }
 
 /* Dropdown options */
-div[data-baseweb="popover"] li {
+div[data-testid="stPopover"] li,
+div[data-testid="stPopover"] ul {
     color: #17324D !important;
     background-color: #FFFFFF !important;
 }
 
-div[data-baseweb="popover"] li:hover {
+div[data-testid="stPopover"] li:hover {
     background-color: #D5F0E8 !important;
 }
 
@@ -190,14 +194,13 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 st.markdown(
-    "### Explore our collective travel dreams",
+    "### Explore our collective travel dreams"
 )
+
 st.markdown(
     "Choose a country, add your name, and become part of "
     "a growing map of places people hope to explore."
 )
-
-
 
 
 # Step 3 — Load world boundaries and connect to Google Sheets
@@ -252,8 +255,6 @@ def load_contributions():
 
 # Step 4 — Collect participant information
 
-
-# Step 4 — Collect participant information
 st.sidebar.header("✈️ Add Your Dream Destination")
 
 name = st.sidebar.text_input(
@@ -270,23 +271,33 @@ country = st.sidebar.selectbox(
 
 contributions = load_contributions()
 
+# Count contributions and collect contributor names
 if not contributions.empty:
-    counts = contributions.groupby("Country").size().to_dict()
+
+    counts = (
+        contributions.groupby("Country")
+        .size()
+        .to_dict()
+    )
 
     dreamers = (
         contributions.groupby("Country")["Contributor"]
         .apply(
             lambda x: ", ".join(
-                sorted(set(
-                    x.dropna().astype(str).str.strip()
-                ) - {""})
+                sorted(
+                    set(
+                        x.dropna().astype(str).str.strip()
+                    ) - {""}
+                )
             )
         )
         .to_dict()
     )
+
 else:
     counts = {}
     dreamers = {}
+
 
 # Add a temporary vote for live preview
 preview_counts = counts.copy()
@@ -296,16 +307,22 @@ if country:
         preview_counts.get(country, 0) + 1
     )
 
+
+# Prepare map data
 map_data = world.copy()
 
 map_data["Dream_Count"] = (
     map_data["NAME"].map(preview_counts).fillna(0)
 )
+
 map_data["Dreamers"] = (
     map_data["NAME"].map(dreamers).fillna("No contributors yet")
 )
 
+
+# Add current name to live preview
 if country and name.strip():
+
     existing_names = dreamers.get(country, "")
 
     preview_names = [
@@ -321,7 +338,9 @@ if country and name.strip():
         map_data["NAME"] == country, "Dreamers"
     ] = ", ".join(preview_names)
 
+
 # Step 5 — Create the interactive world map
+
 geojson = json.loads(map_data.to_json())
 
 fig = px.choropleth(
@@ -332,9 +351,9 @@ fig = px.choropleth(
     color="Dream_Count",
     hover_name="NAME",
     hover_data={
-    "Dream_Count": True,
-    "Dreamers": True
-}
+        "Dream_Count": True,
+        "Dreamers": True
+    },
     color_continuous_scale=[
         [0.00, "#EAF0F3"],
         [0.25, "#B7DDE0"],
@@ -346,15 +365,18 @@ fig = px.choropleth(
     title="OUR DREAM DESTINATIONS AROUND THE WORLD"
 )
 
+
 # Automatically zoom to selected country
 zoom_settings = {}
 
 if country:
+
     selected_geometry = map_data.loc[
         map_data["NAME"] == country, "geometry"
     ]
 
     if not selected_geometry.empty:
+
         minx, miny, maxx, maxy = selected_geometry.total_bounds
 
         lon_pad = max((maxx - minx) * 0.25, 5)
@@ -371,6 +393,7 @@ if country:
             ]
         }
 
+
 fig.update_geos(
     showcoastlines=True,
     coastlinecolor="#FFFFFF",
@@ -386,6 +409,7 @@ fig.update_geos(
     projection_type="natural earth",
     **zoom_settings
 )
+
 
 fig.update_layout(
     height=700,
@@ -413,6 +437,7 @@ fig.update_layout(
     dragmode="pan"
 )
 
+
 st.plotly_chart(
     fig,
     use_container_width=True,
@@ -428,8 +453,10 @@ st.plotly_chart(
     }
 )
 
+
 # Show selected destination preview
 if country:
+
     st.markdown(f"""
     <div style="
         background-color:#D5F0E8;
@@ -448,18 +475,23 @@ if country:
 
 
 # Step 6 — Save contribution to Google Sheets
+
 if st.sidebar.button(
     "Submit My Dream Destination",
     type="primary",
     use_container_width=True
 ):
+
     if not name.strip():
+
         st.sidebar.error("Please enter your name.")
 
     elif not country:
+
         st.sidebar.error("Please select a country.")
 
     else:
+
         connect_sheet().append_row(
             [name.strip(), country],
             value_input_option="USER_ENTERED"
@@ -475,6 +507,7 @@ if st.sidebar.button(
 
 
 # Step 7 — Display collaborative statistics
+
 st.divider()
 
 st.subheader("🌏 Our Collective Travel Dreams")
@@ -497,7 +530,9 @@ col3.metric(
     len(counts)
 )
 
+
 if not contributions.empty:
+
     st.subheader("✈️ Community Contributions")
 
     st.dataframe(
@@ -505,5 +540,7 @@ if not contributions.empty:
         use_container_width=True,
         hide_index=True
     )
+
 else:
+
     st.write("Be the first to add your dream destination!")
