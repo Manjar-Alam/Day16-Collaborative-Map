@@ -250,8 +250,6 @@ def load_contributions():
     )
 
 
-# Step 4 — Collect participant information
-
 
 # Step 4 — Collect participant information
 st.sidebar.header("✈️ Add Your Dream Destination")
@@ -270,10 +268,18 @@ country = st.sidebar.selectbox(
 
 contributions = load_contributions()
 
+# Count contributions and collect contributor names
 if not contributions.empty:
     counts = contributions.groupby("Country").size().to_dict()
+
+    dreamers = (
+        contributions.groupby("Country")["Contributor"]
+        .apply(lambda x: ", ".join(sorted(set(x.dropna()))))
+        .to_dict()
+    )
 else:
     counts = {}
+    dreamers = {}
 
 # Add a temporary vote for live preview
 preview_counts = counts.copy()
@@ -283,11 +289,33 @@ if country:
         preview_counts.get(country, 0) + 1
     )
 
+# Prepare map data
 map_data = world.copy()
 
 map_data["Dream_Count"] = (
     map_data["NAME"].map(preview_counts).fillna(0)
 )
+
+map_data["Dreamers"] = (
+    map_data["NAME"].map(dreamers).fillna("No contributors yet")
+)
+
+# Include current user's name in live preview
+if country and name.strip():
+    existing_names = dreamers.get(country, "")
+
+    preview_names = [
+        n.strip()
+        for n in existing_names.split(",")
+        if n.strip()
+    ]
+
+    if name.strip() not in preview_names:
+        preview_names.append(name.strip())
+
+    map_data.loc[
+        map_data["NAME"] == country, "Dreamers"
+    ] = ", ".join(preview_names)
 
 
 # Step 5 — Create the interactive world map
@@ -300,7 +328,10 @@ fig = px.choropleth(
     featureidkey="properties.NAME",
     color="Dream_Count",
     hover_name="NAME",
-    hover_data={"Dream_Count": True},
+    hover_data={
+        "Dream_Count": True,
+        "Dreamers": True
+    },
     color_continuous_scale=[
         [0.00, "#EAF0F3"],
         [0.25, "#B7DDE0"],
@@ -411,65 +442,3 @@ if country:
         Submit to add it to our community map!
     </div>
     """, unsafe_allow_html=True)
-
-
-# Step 6 — Save contribution to Google Sheets
-if st.sidebar.button(
-    "Submit My Dream Destination",
-    type="primary",
-    use_container_width=True
-):
-    if not name.strip():
-        st.sidebar.error("Please enter your name.")
-
-    elif not country:
-        st.sidebar.error("Please select a country.")
-
-    else:
-        connect_sheet().append_row(
-            [name.strip(), country],
-            value_input_option="USER_ENTERED"
-        )
-
-        load_contributions.clear()
-
-        st.sidebar.success(
-            f"Your dream destination, {country}, has been saved!"
-        )
-
-        st.rerun()
-
-
-# Step 7 — Display collaborative statistics
-st.divider()
-
-st.subheader("🌏 Our Collective Travel Dreams")
-
-col1, col2, col3 = st.columns(3)
-
-col1.metric(
-    "Total Contributions",
-    len(contributions)
-)
-
-col2.metric(
-    "Countries Selected",
-    contributions["Country"].nunique()
-    if not contributions.empty else 0
-)
-
-col3.metric(
-    "Dream Destinations",
-    len(counts)
-)
-
-if not contributions.empty:
-    st.subheader("✈️ Community Contributions")
-
-    st.dataframe(
-        contributions,
-        use_container_width=True,
-        hide_index=True
-    )
-else:
-    st.write("Be the first to add your dream destination!")
